@@ -2,10 +2,8 @@ import gzip
 from itertools import zip_longest
 import logging
 from multiprocessing import Lock, Manager, Process, Pool, Queue, Value
-import os
 from pathlib import Path
 import pickle as pkl
-from sys import argv
 from time import sleep
 from typing import List, Dict
 
@@ -92,8 +90,11 @@ def process_reads(queue: Queue, pkl_fname: str,
         total_workers_done.value += 1
 
 
-def write_genotypes(out_dir, idx, d):
-    with open(out_dir + f'/{idx}.txt', 'w+') as f:
+def write_genotypes(out_path: Path, idx: int, d: Dict[str, int]):
+    """
+    Write genotypes from D to OUT_PATH/IDX.txt.
+    """
+    with (out_path / f'{idx}.txt').open('w+') as f:
         f.write('genotype,count\n')
         for k, v in d.items():
             f.write(f'{k},{v}\n')
@@ -179,7 +180,7 @@ def main(tgt_path: Path, grna_path: Path, lib_path: Path):
             proc.join()
         # Make new worker processes that process each genotype dict.
         with Pool(N_WORKERS) as pool:
-            pool.starmap(write_genotypes, [(out_dir, i, genotypes[i]) for i in range(len(lib_df))])
+            pool.starmap(write_genotypes, [(out_path, i, genotypes[i]) for i in range(len(lib_df))])
 
 
 if __name__ == '__main__':
