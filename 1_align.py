@@ -26,6 +26,7 @@ def process_reads(queue: Queue, pkl_fname: str,
     """
     with open(pkl_fname, 'rb') as f:
         lib_df, lib_lsh = pkl.load(f)
+    aligner = make_aligner()
 
     q_pass = 0
     while True:
@@ -127,7 +128,7 @@ def main(tgt_path: Path, grna_path: Path, lib_path: Path):
         lib_df, lib_lsh = library
 
     # Set up synchronization primitives
-    q = Queue()                         # Queue of reads to process
+    queue = Queue()                     # Queue of reads to process
     total_q_pass = Value('L', 0)        # Number of reads passing filter
     total_workers_done = Value('I', 0)  # Number of workers that have finished
     with Manager() as manager:
@@ -136,7 +137,8 @@ def main(tgt_path: Path, grna_path: Path, lib_path: Path):
         
         logging.info(f'Spawning {N_WORKERS} workers...')
         workers = [Process(target=process_reads,
-                           args=(q, locks, genotypes, total_q_pass, total_workers_done))
+                           args=(queue, str(pkl_path), locks, genotypes,
+                                 total_q_pass, total_workers_done))
                    for _ in range(N_WORKERS)]
         for proc in workers:
             proc.start()
@@ -150,21 +152,21 @@ def main(tgt_path: Path, grna_path: Path, lib_path: Path):
                 elif i % 4 == 3:
                     qual1 = line1.decode().strip()
                     qual2 = line2.decode().strip()
-                    q.put(((read1, qual1, read2, qual2)))
+                    queue.put(((read1, qual1, read2, qual2)))
                 if i % 4000000 == 0 and i > 0:
-                    logging.info(f'Added {i // 4} reads to the queue. Remaining: {q.qsize()}')
+                    logging.info(f'Added {i // 4} reads to the queue. Remaining: {queue.qsize()}')
         for _ in range(N_WORKERS):
-            q.put('stop')
+            queue.put('stop')
 
         # Wait for workers to finish
-        last_remaining = q.qsize()
+        last_remaining = queue.qsize()
         logging.info(f'Added {i // 4} reads to the queue. Remaining: {last_remaining} reads')
         cons_0 = 0  # Consecutive minutes the number of reads hasn't decreased. Sometimes one
                     # worker will mysteriously fail to stop and deadlock the program. This
                     # allows the program to finish running if that happens.
         while total_workers_done.value < N_WORKERS:
             sleep(60)
-            now_remaining = q.qsize()
+            now_remaining = queue.qsize()
             reads_per_min = last_remaining - now_remaining
             if reads_per_min == 0:
                 cons_0 += 1
