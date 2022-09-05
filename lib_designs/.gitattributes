@@ -1,0 +1,5 @@
+library_12kChar.csv filter=lfs diff=lfs merge=lfs -text
+library_AtoG.csv filter=lfs diff=lfs merge=lfs -text
+library_CtoT.csv filter=lfs diff=lfs merge=lfs -text
+library_LibA.csv filter=lfs diff=lfs merge=lfs -text
+library_PAMvar.csv filter=lfs diff=lfs merge=lfs -text
