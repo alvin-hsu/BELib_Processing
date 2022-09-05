@@ -9,7 +9,7 @@ N_WORKERS = 14  # Number of workers (Go with #cores - 2)
 ############################
 # Settings for the target read
 TARGET_START = 0
-TARGET_END = 56
+TARGET_LEN = 56
 TARGET_REVCOMP = True
 SPACER_OFFSET = 21
 # Settings for the gRNA read
