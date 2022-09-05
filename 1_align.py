@@ -110,7 +110,7 @@ def main(tgt_path: Path, grna_path: Path, lib_path: Path):
     for i, (t, g) in enumerate(zip_longest(str(tgt_path), str(grna_path))):
         if t != g:
             break
-    prefix = str(tgt_path)[:i].rsplit('_')[0]
+    prefix = str(tgt_path)[:i].rsplit('_', 1)[0]
     out_path = Path(prefix + '_genotypes').resolve()
     out_path.mkdir(parents=True, exist_ok=True)
     configure_logger(out_path)
