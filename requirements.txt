@@ -1,0 +1,5 @@
+numpy
+pandas
+matplotlib
+biopython==1.79
+logomaker==0.8
