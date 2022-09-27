@@ -1,5 +1,6 @@
 numpy
 pandas
 matplotlib
+scipy
 biopython==1.79
 logomaker==0.8

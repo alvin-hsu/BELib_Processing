@@ -1,3 +1,4 @@
+from collections import namedtuple
 import gzip
 from itertools import zip_longest
 import logging
@@ -5,19 +6,81 @@ from multiprocessing import Lock, Manager, Process, Pool, Queue, Value
 from pathlib import Path
 import pickle as pkl
 from time import sleep
-from typing import List, Dict
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
-from pexpect import spawn
 
 from _config import *
 from _utils import *
 
 
+class KMerLSH(object):
+    """
+    A locality-sensitive hashing table.
+    """
+    def __init__(self, entries, k=6):
+        self.entries = []
+        self.k = k
+        for idx, entry in enumerate(entries):
+            s = set()
+            for i in range(len(entry) - k):
+                s.add(entry[i:i+k])
+            self.entries.append((idx, entry, s))
+
+    def lookup(self, sequence, top_n=5, cutoff=30) -> List[Tuple[Tuple[int, Any, set], int]]:
+        kmers = []
+        for i in range(len(sequence) - self.k):
+            kmers.append(sequence[i:i+self.k])
+
+        candidates = []
+        for entry in self.entries:
+            mismatches = 0
+            for kmer in kmers:
+                if kmer not in entry[2]:
+                    mismatches += 1
+                    if mismatches > cutoff:
+                        break
+            else:
+                candidates.append((entry, mismatches))
+
+        candidates.sort(key=lambda x: x[1])
+        return candidates[:top_n]
+
+
+Library = namedtuple('Library', ['df', 'lshmap'])
+
+
+def poswise_match(query: str, reference: str, start=0, end=-1, stop=0) -> Tuple[int, int]:
+    """ 
+    Finds the REFERENCE string in the QUERY by sliding along QUERY starting from START and ending at
+    END. If an alignment has a score <= STOP, then stops and returns immediately. Otherwise, returns
+    the best index and its score.
+    """
+    assert len(query) >= len(reference)
+    # end_idx is the last starting index to try
+    if end < 0:
+        end = len(query) + end
+        end_idx = end - len(reference) + 1
+    else:
+        end_idx = end + 1
+    best_score = len(reference)
+    best_idx = None
+    query_b = memoryview(query.encode())
+    ref_b = memoryview(reference.encode())
+    for i in range(start, end_idx + 1):
+        score = sum([c0 != c1 for c0, c1 in zip(ref_b, query_b[i:i + len(reference)])])
+        if score < best_score:
+            best_score = score
+            best_idx = i
+            if score <= stop:
+                return i, score
+    return best_idx, best_score
+
+
 def process_reads(queue: Queue, pkl_fname: str,
                   locks: List[Lock], genotypes: List[Dict[str, int]],
-                  total_q_pass: int, total_workers_done: int):
+                  total_q_pass: Value, total_workers_done: Value):
     """
     Code that a worker process should follow during alignment. Note that LOCKS,
     GENOTYPES, TOTAL_Q_PASS, and TOTAL_WORKERS_DONE are not actually the types
@@ -108,6 +171,7 @@ def main(tgt_path: Path, grna_path: Path, lib_path: Path):
     new workers for processing the genotypes assigned to each library member.
     """
     # Make an output folder, if it doesn't already exist.
+    i = 0
     for i, (t, g) in enumerate(zip_longest(str(tgt_path), str(grna_path))):
         if t != g:
             break
@@ -134,7 +198,7 @@ def main(tgt_path: Path, grna_path: Path, lib_path: Path):
     with Manager() as manager:
         locks = [Lock() for _ in range(len(lib_df))]              # Locks to prevent race conditions
         genotypes = [manager.dict() for _ in range(len(lib_df))]  # Genotypes for each member
-        
+
         logging.info(f'Spawning {N_WORKERS} workers...')
         workers = [Process(target=process_reads,
                            args=(queue, str(pkl_path), locks, genotypes,
@@ -152,7 +216,7 @@ def main(tgt_path: Path, grna_path: Path, lib_path: Path):
                 elif i % 4 == 3:
                     qual1 = line1.decode().strip()
                     qual2 = line2.decode().strip()
-                    queue.put(((read1, qual1, read2, qual2)))
+                    queue.put((read1, qual1, read2, qual2))
                 if i % 4000000 == 0 and i > 0:
                     logging.info(f'Added {i // 4} reads to the queue. Remaining: {queue.qsize()}')
         for _ in range(N_WORKERS):
@@ -202,4 +266,3 @@ if __name__ == '__main__':
     assert grna_path.is_file(), 'Missing gRNA .fastq.gz (usually is R2)'
     assert lib_path.is_file(), 'Missing library desisgn CSV'
     main(tgt_path, grna_path, lib_path)
-

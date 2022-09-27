@@ -52,9 +52,9 @@ For simplicity, settings used for processing are kept in `_config.py`. The
 settings provided here are the same as those used in Neugebauer et al. The only
 settings that should need checking each time are:
 - `N_WORKERS`: Set this to the number of CPUs you want to use for alignment.
-- `TARGET_START`, `TARGET_END`, `TARGET_REVCOMP`: Set these to the indices in
-the target read for where the target site begins and ends, as well as to
-whether the target site is reverse complemented (relative to the read).
+- `TARGET_START`, `TARGET_LEN`, `TARGET_REVCOMP`: Set these to the indices in
+the target read for where the target site begins, the length of the target site,
+and whether the target site is reverse complemented (relative to the read).
 - `GRNA_START`, `GRNA_END`, `GRNA_REVCOMP`: Set these to the indices in the
 gRNA read for where to look for the gRNA spacer, as well as to whether the
 gRNA is reverse complemented (relative to the read).
