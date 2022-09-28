@@ -81,39 +81,11 @@ def summarize(genotype_path: Path, lib_design: pd.DataFrame, name: str,
                     stats['cbe_reads'][lib_idx] += count
                 if has_abe:
                     stats['abe_reads'][lib_idx] += count
-        # Compute average CA disequilibrium score and conditional probability
-        c_pos = [i for i, x in enumerate(unedited_target, WINDOW_START)
-                 if x == 'C' and BE_WIN_START <= i <= BE_WIN_END]
-        a_pos = [i for i, x in enumerate(unedited_target, WINDOW_START)
-                 if x == 'A' and BE_WIN_START <= i <= BE_WIN_END]
-        ca_scores = []
-        a_c_probs = []
-        for c_i in c_pos:
-            for a_i in a_pos:
-                joint = 0
-                c_total = 0
-                a_total = 0
-                for genotype, count in fixed_genotypes:
-                    if genotype[c_i - WINDOW_START] == 'T' and genotype[a_i - WINDOW_START] == 'G':
-                        joint += count
-                    if genotype[c_i - WINDOW_START] == 'T':
-                        c_total += count
-                    if genotype[a_i - WINDOW_START] == 'G':
-                        a_total += count
-                if joint > 0 and a_total > 0 and c_total > 0:
-                    ca_scores.append((abs(c_i - a_i), total_reads*joint / (a_total*c_total)))
-                    a_c_probs.append((abs(c_i - a_i), joint / c_total))
-        average_ca_scores = np.array([np.mean([x for d, x in ca_scores if d == dist])
-                                      for dist in range(1, BE_WIN_END - BE_WIN_START+1)])
-        average_a_c_probs = np.array([np.mean([x for d, x in a_c_probs if d == dist])
-                                      for dist in range(1, BE_WIN_END - BE_WIN_START+1)])
         # Write statistics to report
         stats['total_reads'][lib_idx] = total_reads
         stats['indel_reads'][lib_idx] = indel_reads
         stats['unedited_reads'][lib_idx] = unedited_reads
         stats['baseedit_reads'][lib_idx] = baseedit_reads
-        stats['ca_disequilibrium'][lib_idx, :] = average_ca_scores
-        stats['a_given_c_prob'][lib_idx, :] = average_a_c_probs
         
     stats_df = {'total_reads': stats['total_reads'],
                 'indel_reads': stats['indel_reads'],
@@ -126,9 +98,6 @@ def summarize(genotype_path: Path, lib_design: pd.DataFrame, name: str,
         for u, e in BASE_EDITS:
             stats_df[f'pos_{pos}_{u}_to_{e}_count'] = stats['poswise_be'][u + e][:, i]
             stats_df[f'pos_{pos}_{u}_to_{e}_frac'] = stats_df[f'pos_{pos}_{u}_to_{e}_count'] / stats_df['total_reads']
-    for dist in range(1, BE_WIN_END - BE_WIN_START+1):
-        stats_df[f'ca_disequil_{dist}'] = stats['ca_disequilibrium'][:, dist-1]
-        stats_df[f'a_given_c_prob_{dist}'] = stats['a_given_c_prob'][:, dist-1]
 
     stats_df = pd.DataFrame(stats_df)
     if raw:
