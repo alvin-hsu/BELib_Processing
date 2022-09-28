@@ -1,6 +1,3 @@
-from pathlib import Path
-
-
 def dt_str() -> str:
     """
     Returns a string with the current datetime.
@@ -18,13 +15,16 @@ def git_commit() -> str:
     return check_output(git_command).decode('ascii').strip()
 
 
-def configure_logger(log_path: Path):
+def configure_logger(log_path: str):
     """
     Configures the Python `logging` package to print pretty logging messages that will be stored at 
-    LOG_PATH/alignment_log_YYMMDD_HHMMSS.txt
+    LOG_PATH/[script_name]_log_YYMMDD_HHMMSS.txt
     """
     import logging
-    log_path = log_path / f'alignment_log_{dt_str()}.txt'
+    from pathlib import Path
+    from sys import argv
+    script_name = Path(argv[1]).stem
+    log_path = Path(log_path).resolve() / f'{script_name}_log_{dt_str()}.txt'
     log_path.touch()
     logging.getLogger().setLevel(logging.INFO)
     logging.basicConfig(
@@ -77,3 +77,6 @@ def make_aligner():
     aligner.target_end_gap_score = 0
     aligner.query_end_gap_score = 0
     return aligner
+
+
+BASES = list('ACGT')

@@ -4,3 +4,4 @@ matplotlib
 scipy
 biopython==1.79
 logomaker==0.8
+scikit-learn==1.1.2

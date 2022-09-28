@@ -178,7 +178,7 @@ def main(tgt_path: Path, grna_path: Path, lib_path: Path):
     prefix = str(tgt_path)[:i].rsplit('_', 1)[0]
     out_path = Path(prefix + '_genotypes').resolve()
     out_path.mkdir(parents=True, exist_ok=True)
-    configure_logger(out_path)
+    configure_logger(str(out_path))
     # Check to see if the library information is already cached as a pickle. If not, create it.
     pkl_path = lib_path.with_suffix('.pkl')
     if pkl_path.is_file():

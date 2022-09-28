@@ -7,6 +7,7 @@ import pandas as pd
 from scipy.stats import binom, f_oneway
 
 from _config import *
+from _utils import *
 
 
 def summarize(genotype_path: Path, lib_design: pd.DataFrame, name: str,
@@ -189,6 +190,7 @@ def batch_correct(raw_summary_files: List[Path], lib_design: pd.DataFrame) -> np
 
 
 def main(data_path: Path, lib_path: Path, exp_path: Path):
+    configure_logger(str(data_path))
     lib_design = pd.read_csv(lib_path)
     exp_design = pd.read_csv(exp_path)
     exp_design['full_name'] = (exp_design['editor_name'] + '_' +
@@ -196,7 +198,7 @@ def main(data_path: Path, lib_path: Path, exp_path: Path):
                                exp_design['rep'])
     # Generate raw summaries of each individual sequencing experiment
     for _, row in exp_design.iterrows():
-        summarize(data_path / row['name'], lib_design, row['full_name'])
+        summarize(data_path / f"{row['name']}_genotypes", lib_design, row['full_name'])
     # Batch-correct each group of experiments
     for editor in exp_design['editor_name'].unique():
         for cell_type in exp_design['cell_type'].unique():
@@ -204,11 +206,11 @@ def main(data_path: Path, lib_path: Path, exp_path: Path):
                                   (exp_design['cell_type'] == cell_type)]
             if len(filtered) == 0:
                 continue
-            raw_summary_files = [data_path / row['name'] / f"{row['full_name']}_raw_stats.csv"
+            raw_summary_files = [data_path / f"{row['name']}_genotypes" / f"{row['full_name']}_raw_stats.csv"
                                  for _, row in filtered.iterrows()]
             errors = batch_correct(raw_summary_files)
             for _, row in filtered.iterrows():
-                summarize(data_path / row['name'], lib_design, row['full_name'], errors)
+                summarize(data_path / f"{row['name']}_genotypes", lib_design, row['full_name'], errors)
 
 
 if __name__ == '__main__':
